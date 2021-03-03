@@ -3,14 +3,14 @@ import argparse
 from Bio import Entrez, SeqIO
 
 # Make sure all files in github repo are in current directory before beginning
-os.system('cd /Users/eliascrum/Programs/PythonProjects/COMP483/mini_proj')  # fix this
+os.system('cd ~/mini_proj')
 
 # supplies the -t flag in terminal for a test run
 run = argparse.ArgumentParser(description='Run test data or real data.')
 run.add_argument('-t', action='store_true',
                  help='"-t" flag uses test data instead of full dataset (default: full dataset)')
 args = run.parse_args()
-test_or_full = True #vars(args)['t'] -- Fix this
+test_or_full = vars(args)['t']
 
 '''
 Fill out the variables here with data if run is not with supplied data
@@ -113,8 +113,8 @@ def split_fastq():
                     for_test(j)
 
     # Driver
-    split_fq(os.listdir('~/mini_proj/transcr_data'))  # extracts .fastq files
-    clean(os.listdir('~/mini_proj'))  # moves paired end .fastq files to transr_data dir
+    split_fq(os.listdir('/mini_proj/transcr_data'))  # extracts .fastq files
+    clean(os.listdir('/mini_proj'))  # moves paired end .fastq files to transr_data dir
 split_fastq()
 
 
