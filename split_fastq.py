@@ -1,15 +1,23 @@
 import os
+from mini_proj_wrapper import *
+from variables import *
 
 
-def split_fastq(files):             # moves transcriptome files to new directory
-    os.system('mkdir /homes/ecrum/mini_proj/transcr_data')
+def split_fastq(files):             # splits transcriptome files into fwd and rev fastq reads
     for i in files:
-        os.system('mv /homes/ecrum/mini_proj/' + i + ' /homes/ecrum/mini_proj/transcr_data/' + i)
-    # Run 'fastq-dump -I --split-files transcrfile' for each of the four files
+        os.system('fastq-dump -I --split-files ~/mini_proj/transcr_data/%s' % i)
 
-    # (when used in a script the error: 'Failed to call external services.' is thrown)
+
+def clean(files):       # cleans dir, moving fastq files to the transcr_data dir
+    for j in files:
+        if '.fastq' in j:
+            os.system('mv /homes/ecrum/mini_proj/%s ~/mini_proj/transcr_data/' % j)
+            if test_or_full():
+                for_test(j)
 
 
 # Driver
-transcriptomes = ['SRR5660033.1', 'SRR5660045.1', 'SRR5660030.1', 'SRR5660044.1']
-split_fastq(transcriptomes)
+transcriptomes = os.listdir('~/mini_proj/transcr_data')
+split_fastq(transcriptomes)                     # extracts .fastq files
+
+clean(os.listdir('~/mini_proj'))                # moves paired end .fastq files to transr_data dir
