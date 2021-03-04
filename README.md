@@ -1,6 +1,6 @@
 ## mini_proj_Elias_crum README
 
-## All requirements for running the pipeline (including programs) are listed below:
+## All program requirements for running the pipeline are listed below:
   
   Python3: https://www.python.org/downloads/
   
