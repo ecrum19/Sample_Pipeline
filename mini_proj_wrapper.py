@@ -35,6 +35,8 @@ if test_or_full:                  # if '-t' flag present --> test data used
     transcriptome_conditions.update({'sample': 'condition'})
     transcriptome_conditions.update({'test_SRR56.1': '2dpi'})
     transcriptome_conditions.update({'test_SRR56.2': '6dpi'})
+    transcriptome_conditions.update({'test_SRR56.3': '2dpi'})
+    transcriptome_conditions.update({'test_SRR56.4': '6dpi'})
 else:
     transcriptome_conditions.update({'sample': 'condition'})
     transcriptome_conditions.update({'SRR5660030': '2dpi'})  # fill in time aspects of data here
@@ -44,7 +46,8 @@ else:
 
 # list of all time and donor conditions of transcriptome data
 if test_or_full:                  # if '-t' flag present --> test data used
-    conditions = ['Donor 1 (2dpi)', 'Donor 1 (6dpi)']
+    conditions = ['Donor 1 (2dpi)','Donor 1 (6dpi)','Donor 2 (2dpi)','Donor 2 (6dpi)']
+    assem_cond = ['Donor 1 (2dpi)','Donor 1 (6dpi)']
 else:
     conditions = ['Donor 1 (2dpi)', 'Donor 1 (6dpi)','Donor 2 (2dpi)','Donor 2 (6dpi)']
 
@@ -76,7 +79,7 @@ pull_files()
 
 def pull_map(accession):  # gets CDS info from Entrez
     def output_log(name, argus):  # writes CDS info to .log file
-        o = open('miniProject.log', 'a')
+        o = open('.log_output/miniProject.log', 'a')
         o.write('%s Fasta:\n' % name)
         o.write(argus)
         o.close()
@@ -111,9 +114,14 @@ split_fastq()
 def wanted_files(cd):  # limits input files to only paired end fastq reads or test reads
     w_f = os.listdir(cd + '/transcr_data')
     nwf = w_f.copy()
+    unwanted = ['test_SRR5660044.1_2.fastq','test_SRR5660044.1_1.fastq', 'test_SRR5660045.1_1.fastq', 'test_SRR5660045.1_2.fastq']
     for n in w_f:
-        if '.fastq' not in n or ('test_' not in n and test_or_full) or ('test_' in n and not test_or_full):
-            nwf.remove(n)
+        if test_or_full:
+            if ('test_' not in n and '.fastq' not in n) or n in unwanted:
+                nwf.remove(n)
+        else:
+            if '.fastq' not in n:
+                nwf.remove(n)
     return nwf
 
 
@@ -183,7 +191,7 @@ def sleuth_write():         # writes sleuth output to .log
         i_s_s = []
         for j in i_s:
             i_s_s.append(j.split(' '))
-        o = open('miniProject.log', 'a')
+        o = open('.log_output/miniProject.log', 'a')
         o.write('\n\nSLEUTH Outputs:\n')
         for k in i_s_s:
             for m in range(len(k)):
@@ -266,7 +274,7 @@ bowtie()
 
 def bowtie_charact():           # writes number of reads before and after mapping to .log
     def write(bnumbers, anumbers, samps):  # writes output to .log file
-        o = open('miniProject.log', 'a')
+        o = open('.log_output/miniProject.log', 'a')
         pos = 0
         o.write('\nBowtie Results:\n')
         for i in samps:
@@ -278,6 +286,20 @@ def bowtie_charact():           # writes number of reads before and after mappin
         for g in gzfiles:
             if '.gz' in g:
                 os.system('gzip -d %s' % g)
+
+    def include(files):
+        inc = os.listdir(cwd + '/transcr_data')
+        yinc = inc.copy()
+        for n in yinc:
+            if test_or_full:
+                if 'test_' not in n:
+                    yinc.remove(n)
+                elif '.fastq' not in n:
+                    yinc.remove(n)
+            else:
+                if '.fastq' not in n:
+                    yinc.remove(n)
+        return yinc
 
     def calc_nums(qfiles, mfiles):  # calculates number of reads based on file length / 4 (because of fastq fmt)
         bnums = []
@@ -301,31 +323,32 @@ def bowtie_charact():           # writes number of reads before and after mappin
             ainp_s = ainp.read().strip().split('\n')
             anums.append(len(ainp_s) / 4)
             if ca % 2 == 0:
-                newa = anums[ca-2] + anums[ca-1]
-                fanums.append(newa)
+                fanums.append(anums[ca-2])
             ca += 1
-        return fbnums, anums
+        return fbnums, fanums
 
     # Driver
-    trans = wanted_files(cwd)  # transcriptome fastq files (before bowtie)
+    trans = include(cwd)  # transcriptome fastq files (before bowtie)
     unzip_files(mapped_wf(os.listdir(cwd)))  # unzip mapped bowtie files
     mapped_f = mapped_wf(os.listdir(cwd))  # CHECK                # unzipped mapped bowtie files
     b, c = calc_nums(trans, mapped_f)  # count number before + after bowtie mapping
-    write(b, c, conditions)  # writes numbers to .log file
+    write(b, c, assem_cond)  # writes numbers to .log file
 
 
 def spades():           # assemples a de novo genome from the mapped bowtie transcriptome reads
     def run_spades(files):  # runs spades and writes command used to .log
         def write(argas):
-            o = open('miniProject.log', 'a')
+            o = open('.log_output/miniProject.log', 'a')
             o.write('\n\nSPAdes Command:\n' + argas + '\n')
 
         ge = []  # groups paired end reads
-        for i in files:
-            for j in files:
+        count = 1
+        for i in sorted(files):
+            for j in sorted(files):
                 if test_or_full:
-                    if i[:15] == j[:15] and i != j and i[-14] != '2':
+                    if i[:15] == j[:15] and i != j and i[-14] != '2' and count < 3:
                         ge.append([i, j])
+                        count += 1
                 else:
                     if i[:12] == j[:12] and i != j and i[-11] != '2':
                         ge.append([i, j])
@@ -349,7 +372,7 @@ bowtie_charact()
 def contig_len():           # determines the number of contigs >1000 bp obtained from spades assembly
     def num_big(file):  # writes number of contigs > 1000 bp to .log
         def write(arges):
-            o = open('miniProject.log', 'a')
+            o = open('.log_output/miniProject.log', 'a')
             o.write('\n\nSPAdes Contigs:\n' +
                     'There are %d contigs > 1000 bp in the assembly.\n' % arges)
         f = open(cwd + '/spades_out/' + file, 'r')
@@ -358,7 +381,7 @@ def contig_len():           # determines the number of contigs >1000 bp obtained
         for i in f_s:
             if '_length_' in i:
                 r = i.split('_')
-                if int(r[3]) >= 1000:
+                if int(r[3]) > 1000:
                     num += 1
         write(num)
 
@@ -370,7 +393,7 @@ contig_len()
 def assembly_len():         # determines the length of assembled genome with >1000 bp scaffolds
     def tot_bp(file):  # prints length of assembly seq of contigs > 1000 bp
         def write(argqs):
-            o = open('miniProject.log', 'a')
+            o = open('.log_output/miniProject.log', 'a')
             o.write('\n\nSPAdes Scaffold Length:\n' +
                     'There are %d bp in the assembly.\n' % argqs)
 
@@ -380,7 +403,7 @@ def assembly_len():         # determines the length of assembled genome with >10
         for i in f_s:
             if '_length_' in i:
                 r = i.split('_')
-                if int(r[3]) >= 1000:
+                if int(r[3]) > 1000:
                     num += int(r[3])
         write(num)
 
@@ -432,7 +455,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
             'blastn -query %s -db %s -out %s.csv -outfmt "10 sseqid pident length qstart qend sstart send bitscore evalue stitle"' % (q, dbf[:17], o))
 
     def write_blast(outfile):  # writes top 10 BLAST hits to .log
-        o = open('miniProject.log', 'a')
+        o = open('.log_output/miniProject.log', 'a')
         c = open(cwd + '/' + outfile)
         c_s = c.read().strip().split('\n')
         header = ['sacc', 'pident', 'length', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'evalue', 'stitle']
