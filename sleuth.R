@@ -1,5 +1,5 @@
 library(sleuth)
-data_tab <- read.table("~/mini_proj/sleuth_table.txt",header=TRUE,stringsAsFactors=FALSE)
+data_tab <- read.table("~/miniProject_elias_crum/sleuth_table.txt",header=TRUE,stringsAsFactors=FALSE)
 data_tab
 so <- sleuth_prep(data_tab)
 so <- sleuth_fit(so, ~condition, 'full')
