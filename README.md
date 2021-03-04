@@ -12,9 +12,9 @@ All requirements for running the pipeline (including programs) are listed below:
 To run the pipeline:
     1) Download all files in the git repo to local directory
     2) In terminal, execute the following commands 
-        1. cd ~/mini_proj
-        2. python3 mini_proj_wrapper.py -t (only include -t flag if you want to only run test data)
+        1. cd /Path/to/dir (the directory to which you downloaded the repo files)
+        2. python3 mini_proj_wrapper.py -t (include -t flag if you want to only run test data)
 
-If you want to run the pipeline with data other than that provided, update the file names provided in the beginning of the 'mini_proj_wrapper.py file.
+If you want to run the pipeline with data other than that provided, update the file names (indicated by comments) in the beginning of the 'mini_proj_wrapper.py file.
 
 Once finished, the pipline output summary can be be viewed in the miniProject.log file
