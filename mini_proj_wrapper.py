@@ -3,14 +3,15 @@ import argparse
 from Bio import Entrez, SeqIO
 
 # Make sure all files in github repo are in current directory before beginning
-os.system('cd ~/mini_proj')
+os.system('cd ~/miniProject_elias_crum')
 
 # supplies the -t flag in terminal for a test run
 run = argparse.ArgumentParser(description='Run test data or real data.')
 run.add_argument('-t', action='store_true',
                  help='"-t" flag uses test data instead of full dataset (default: full dataset)')
 args = run.parse_args()
-test_or_full = vars(args)['t']
+test_or_full = vars(args)['t']      # determines if the run is a test run or not
+
 
 '''
 Fill out the variables here with data if run is not with supplied data
@@ -36,7 +37,7 @@ if test_or_full:                  # if '-t' flag present --> test data used
     transcriptome_conditions.update({'test_SRR56.2': '6dpi'})
 else:
     transcriptome_conditions.update({'sample': 'condition'})
-    transcriptome_conditions.update({'SRR5660030': '2dpi'})  # fill in data here
+    transcriptome_conditions.update({'SRR5660030': '2dpi'})  # fill in time aspects of data here
     transcriptome_conditions.update({'SRR5660033': '6dpi'})
     transcriptome_conditions.update({'SRR5660044': '2dpi'})
     transcriptome_conditions.update({'SRR5660045': '6dpi'})
@@ -59,47 +60,41 @@ def pull_files():       # pulls transcriptome + reference CDS map data
         for i in seq_addresses:
             os.system("wget " + i)
 
-    def pull_map(accession):
-        Entrez.email = "ecrum@luc.edu"
-        net_handle = Entrez.efetch(db="nucleotide", id=accession, rettype="gb")  # fetches GenBank record
-        out_handle = open(str(accession) + '.fasta', "w")  # writes record to local file
-        recs = SeqIO.parse(net_handle, 'gb')
-        for r in recs:
-            output_log(accession, 'The HCMV genome (EF999921) has %s CDS.' % str(len(r.features)))  # for q2
-        out_handle.close()
-        net_handle.close()
-
-    def output_log(name, argus):  # writes output to .log file
-        o = open('miniProject.log', 'a')
-        o.write('%s Fasta:\n' % name)
-        o.write(argus)
-        o.close()
-
-    def new_dir(addresses, cd):  # makes a directory for transcriptome files
-        os.system('mkdir ' + cd + '/transcr_data')
+    def new_dir(addresses, cd):  # moves transcriptome files to transcr_data dir
         if not test_or_full:
             for i in addresses:
                 c = i.split('/')
                 os.system('mv ' + cd + '/' + c[-1] + ' ' + cd + '/transcr_data/')
-        else:
-            for j in os.listdir(cwd):
-                if 'test_' in j:
-                    os.system('mv ' + cd + '/' + j + ' ' + cd + '/transcr_data/')
+
     # Driver
     # internet addresses for the transcriptome data (change addresses for different transcriptome data analysis)
     if not test_or_full:
         get_seqs(transcript_addresses)
-    new_dir(transcript_addresses, cwd)  # makes new directory for the transcriptome files
+        new_dir(transcript_addresses, cwd)  # makes new directory for the transcriptome files
+pull_files()
 
-    # accession used for the Bowtie2 reference genome (change accession for different map)
-    pull_map(accession=map_accession)
-#pull_files()
+
+def pull_map(accession):  # gets CDS info from Entrez
+    def output_log(name, argus):  # writes CDS info to .log file
+        o = open('miniProject.log', 'a')
+        o.write('%s Fasta:\n' % name)
+        o.write(argus)
+        o.close()
+    Entrez.email = "ecrum@luc.edu"
+    net_handle = Entrez.efetch(db="nucleotide", id=accession, rettype="gb")  # fetches GenBank record
+    out_handle = open(str(accession) + '.fasta', "w")  # writes record to local file
+    recs = SeqIO.parse(net_handle, 'gb')
+    for r in recs:
+        output_log(accession, 'The HCMV genome (EF999921) has %s CDS.' % str(len(r.features)))  # for q2
+    out_handle.close()
+    net_handle.close()
+pull_map(map_accession)
 
 
 def split_fastq():        # splits fastq files and cleans directory
     def split_fq(files):  # splits transcriptome files into fwd and rev fastq reads
         for i in files:
-            os.system('fastq-dump -I --split-files ~/mini_proj/transcr_data/%s' % i)
+            os.system('fastq-dump -I --split-files ' + cwd + '/transcr_data/%s' % i)
 
     def clean(cd, files):  # cleans dir, moving fastq files to the transcr_data dir
         for j in files:
@@ -107,17 +102,17 @@ def split_fastq():        # splits fastq files and cleans directory
                 os.system('mv ' + cd + '/' + j + ' %s/transcr_data/' % cd)
 
     # Driver
-    if not test_or_full:# make not
+    if not test_or_full:
         split_fq(os.listdir(cwd + '/transcr_data'))  # extracts .fastq files
     clean(cwd, os.listdir(cwd))  # moves paired end .fastq files to transr_data dir
-#split_fastq()
+split_fastq()
 
 
 def wanted_files(cd):  # limits input files to only paired end fastq reads or test reads
     w_f = os.listdir(cd + '/transcr_data')
     nwf = w_f.copy()
     for n in w_f:
-        if '.fastq' not in n or ('test_' not in n and test_or_full):
+        if '.fastq' not in n or ('test_' not in n and test_or_full) or ('test_' in n and not test_or_full):
             nwf.remove(n)
     return nwf
 
@@ -128,19 +123,23 @@ def run_kallisto():        # analyzes transcriptome data using kallisto
         os.system('time kallisto index -i %s_index.idx %s' % (a, index))
         return '%s_index.idx' % a
 
-    def kallisto(index, data, cd):
+    def kallisto(index, data, cd):      # runs kallisto
         def kcommand(i, d, m):  # concatenates the command passed to kallisto
             if test_or_full:
-                os.system('kallisto quant -i ~/mini_proj/' + i + ' -o ~/mini_proj/kallisto_out/' + d[0][:10]+
-                          '.'+str(m) + ' -b 30 -t 2 ~/mini_proj/transcr_data/' + d[0] + ' ~/mini_proj/transcr_data/' + d[1])
+                os.system('kallisto quant -i '+cwd+'/'+i+' -o ' + cwd+'/kallisto_out/'+d[0][:10]+'.'+str(m) +
+                          ' -b 30 -t 2 '+cwd+'/transcr_data/'+d[0]+' '+cwd+'/transcr_data/' + d[1])
             else:
-                os.system('kallisto quant -i ~/mini_proj/' + i + ' -o ~/mini_proj/kallisto_out/' + d[0][:10] +
-                          ' -b 30 -t 2 ~/mini_proj/transcr_data/' + d[0] + ' ~/mini_proj/transcr_data/' + d[1])
+                os.system('kallisto quant -i '+cwd+'/'+i+' -o ' + cwd+'/kallisto_out/'+d[0][:10]+
+                          ' -b 30 -t 2 '+cwd+'/transcr_data/'+d[0]+' '+cwd+'/transcr_data/' + d[1])
         pe = []
         for i in data:  # groups paired end reads
             for j in data:
-                if i[:10] == j[:10] and i != j and i[-7] != '2':
-                    pe.append([i, j])
+                if not test_or_full:
+                    if i[:10] == j[:10] and i != j and i[-7] != '2':
+                        pe.append([i, j])
+                else:
+                    if i[:15] == j[:15] and i != j and i[-7] != '2':        # accounts for test_ in file name or not
+                        pe.append([i, j])
         os.system('mkdir ' + cd + '/kallisto_out')
         num = 1
         for k in pe:  # runs kallisto for each of the paired end read pairs
@@ -200,7 +199,7 @@ def sleuth_write():         # writes sleuth output to .log
     fi = cwd + '/sleuth.R'
     sleuth_out(fi)  # sleuth R analysis
 
-    a = cwd + '/sleuth_table.txt'
+    a = cwd + '/EF999921_sleuth_results.txt'
     sleuth_rite(a)  # writes results to .log file
 sleuth_write()
 
@@ -237,14 +236,14 @@ def bowtie():           # runs bowtie seq mapping
         return accession + '.fasta'
 
     def bow_index(file, accession):  # builds bowtie index from accession fasta
-        os.system('bowtie2-build ~/mini_proj/%s %s_ref' % (file, accession))
+        os.system('bowtie2-build '+cwd+'/'+file+' %s_ref' % accession)
         return '%s_ref' % accession
 
     def bow(ind, data):
         p = paird_end(data)
         for k in p:  # runs bowtie2 for each pair
             os.system(
-                'nohup bowtie2 -x ' + ind + ' -1 ~/mini_proj/transcr_data/' + k[0] + ' -2 ~/mini_proj/transcr_data/' +
+                'nohup bowtie2 -x ' + ind + ' -1 '+cwd+'/transcr_data/' + k[0] + ' -2 '+cwd+'/transcr_data/' +
                 k[1] + ' -S ' + k[0][:-6] + '.sam' + ' --al-conc-gz ' + k[0][:-6] + '_mapped.fq.gz')
 
     def rewrite(files):
@@ -285,8 +284,6 @@ def bowtie_charact():           # writes number of reads before and after mappin
         fbnums = []
         anums = []
         fanums = []
-        print(sorted(qfiles))
-        print(sorted(mfiles))
         cb = 1
         ca = 1
         for j in sorted(qfiles):
@@ -307,7 +304,6 @@ def bowtie_charact():           # writes number of reads before and after mappin
                 newa = anums[ca-2] + anums[ca-1]
                 fanums.append(newa)
             ca += 1
-        print(fbnums, fanums)
         return fbnums, anums
 
     # Driver
@@ -323,21 +319,23 @@ def spades():           # assemples a de novo genome from the mapped bowtie tran
         def write(argas):
             o = open('miniProject.log', 'a')
             o.write('\n\nSPAdes Command:\n' + argas + '\n')
-        if not test_or_full:
-            ge = paird_end(files)
-        else:
-            ge = []  # groups paired end reads
-            for i in files:
-                for j in files:
+
+        ge = []  # groups paired end reads
+        for i in files:
+            for j in files:
+                if test_or_full:
                     if i[:15] == j[:15] and i != j and i[-14] != '2':
+                        ge.append([i, j])
+                else:
+                    if i[:12] == j[:12] and i != j and i[-11] != '2':
                         ge.append([i, j])
         command_string = 'nohup spades -k 55,127 -t 2 --only-assembler'
         count = 1
-        for i in ge:# this is messed up
-            command_string += ' --pe' + str(count) + '-1 ~/mini_proj/' + i[0] + \
-                              ' --pe' + str(count) + '-2 ~/mini_proj/' + i[1]
+        for i in ge:
+            command_string += ' --pe' + str(count) + '-1 ' + cwd + '/' + i[0] + \
+                              ' --pe' + str(count) + '-2 ' + cwd + '/' + i[1]
             count += 1
-        command_string += ' -o ~/mini_proj/spades_out'
+        command_string += ' -o ' + cwd + '/spades_out'
         write(command_string)
         os.system(command_string)
 
@@ -429,7 +427,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
         write(f_s[startp:endp + 1])
 
     def run_blast(dbf, q, o):  # runs local BLAST using longest scaffold
-        os.system('makeblastdb -in ~/mini_proj/%s -out %s -title %s -dbtype nucl' % (dbf, dbf[:17], dbf[:17]))
+        os.system('makeblastdb -in '+cwd+'/%s -out %s -title %s -dbtype nucl' % (dbf, dbf[:17], dbf[:17]))
         os.system(
             'blastn -query %s -db %s -out %s.csv -outfmt "10 sseqid pident length qstart qend sstart send bitscore evalue stitle"' % (q, dbf[:17], o))
 
@@ -464,10 +462,13 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
     longest_scaffold('scaffolds.fasta')  # finds longest scaffold
 
     db = blast_db
-    query = '~/mini_proj/spades_out/long_scaf.fasta'
+    query = cwd + '/spades_out/long_scaf.fasta'
     out = 'blast_out'
     run_blast(db, query, out)  # runs blast Query: longest scaffold, Subject: Herpes RefSeq files
     write_blast('blast_out.csv')  # writes blast outputs to .log
 blast()
 
 
+'''
+Output results are summarized in the miniProject.log file
+'''
