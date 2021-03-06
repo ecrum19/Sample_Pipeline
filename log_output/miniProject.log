@@ -22,7 +22,7 @@ EF999921.1_cds_ABV71507.1_10	7.96945406908004	0.00475732844864216	0.049654615682
 
 
 SPAdes Command:
-nohup spades -k 55,127 -t 2 --only-assembler --pe1-1 ~/mini_proj/SRR5660033.1_1_mapped.fq --pe1-2 ~/mini_proj/SRR5660033.1_2_mapped.fq --pe2-1 ~/mini_proj/SRR5660045.1_1_mapped.fq --pe2-2 ~/mini_proj/SRR5660045.1_2_mapped.fq --pe3-1 ~/mini_proj/SRR5660044.1_1_mapped.fq --pe3-2 ~/mini_proj/SRR5660044.1_2_mapped.fq --pe4-1 ~/mini_proj/SRR5660030.1_1_mapped.fq --pe4-2 ~/mini_proj/SRR5660030.1_2_mapped.fq -o ~/mini_proj/spades_out
+nohup spades -k 55,77,127 -t 2 --only-assembler --pe1-1 ~/mini_proj/SRR5660033.1_1_mapped.fq --pe1-2 ~/mini_proj/SRR5660033.1_2_mapped.fq --pe2-1 ~/mini_proj/SRR5660045.1_1_mapped.fq --pe2-2 ~/mini_proj/SRR5660045.1_2_mapped.fq --pe3-1 ~/mini_proj/SRR5660044.1_1_mapped.fq --pe3-2 ~/mini_proj/SRR5660044.1_2_mapped.fq --pe4-1 ~/mini_proj/SRR5660030.1_1_mapped.fq --pe4-2 ~/mini_proj/SRR5660030.1_2_mapped.fq -o ~/mini_proj/spades_out
 
 
 Bowtie Results:
@@ -33,11 +33,11 @@ Donor 2 (6dpi) had 2476889.0 read pairs before Bowtie2 filtering and 1500834.0 r
 
 
 SPAdes Contigs:
-There are 56 contigs > 1000 bp in the assembly.
+There are 55 contigs > 1000 bp in the assembly.
 
 
 SPAdes Scaffold Length:
-There are 200189 bp in the assembly.
+There are 196479 bp in the assembly.
 
 
 BLAST+ Output:
