@@ -79,7 +79,7 @@ pull_files()
 
 def pull_map(accession):  # gets CDS info from Entrez
     def output_log(name, argus):  # writes CDS info to .log file
-        o = open('.log_output/miniProject.log', 'a')
+        o = open('miniProject.log', 'a')
         o.write('%s Fasta:\n' % name)
         o.write(argus)
         o.close()
@@ -87,7 +87,7 @@ def pull_map(accession):  # gets CDS info from Entrez
     net_handle = Entrez.efetch(db="nucleotide", id=accession, rettype="gb")  # fetches GenBank record
     out_handle = open(str(accession) + '.fasta', "w")  # writes record to local file
     recs = SeqIO.parse(net_handle, 'gb')
-    for r in recs:
+    for r in recs:        # writes the number of features to .log
         output_log(accession, 'The HCMV genome (EF999921) has %s CDS.' % str(len(r.features)))  # for q2
     out_handle.close()
     net_handle.close()
@@ -111,13 +111,30 @@ def split_fastq():        # splits fastq files and cleans directory
 split_fastq()
 
 
-def wanted_files(cd):  # limits input files to only paired end fastq reads or test reads
+def wanted_files(cd):  # limits input files to only paired end fastq reads or test reads (Kallisto)
     w_f = os.listdir(cd + '/transcr_data')
     nwf = w_f.copy()
+    # for running the test (only want to use two files for bowtie and spades to make it run faster but 4 for kallisto to
+    # simulate real results)
+    for n in w_f:
+        if test_or_full:
+            if 'test_' not in n and '.fastq' not in n:       # different files are used for -t or reg
+                nwf.remove(n)
+        else:
+            if '.fastq' not in n:
+                nwf.remove(n)
+    return nwf
+
+
+def wanted_files2(cd):  # limits input files to only paired end fastq reads or test reads (Bowtie)
+    w_f = os.listdir(cd + '/transcr_data')
+    nwf = w_f.copy()
+    # for running the test (only want to use two files for bowtie and spades to make it run faster but 4 for kallisto to
+    # simulate real results)
     unwanted = ['test_SRR5660044.1_2.fastq','test_SRR5660044.1_1.fastq', 'test_SRR5660045.1_1.fastq', 'test_SRR5660045.1_2.fastq']
     for n in w_f:
         if test_or_full:
-            if ('test_' not in n and '.fastq' not in n) or n in unwanted:
+            if ('test_' not in n and '.fastq' not in n) or n in unwanted:       # different files are used for -t or reg
                 nwf.remove(n)
         else:
             if '.fastq' not in n:
@@ -143,12 +160,12 @@ def run_kallisto():        # analyzes transcriptome data using kallisto
         for i in data:  # groups paired end reads
             for j in data:
                 if not test_or_full:
-                    if i[:10] == j[:10] and i != j and i[-7] != '2':
+                    if i[:10] == j[:10] and i != j and i[-7] != '2':        # separates reads based on .1 or .2 in name
                         pe.append([i, j])
                 else:
                     if i[:15] == j[:15] and i != j and i[-7] != '2':        # accounts for test_ in file name or not
                         pe.append([i, j])
-        os.system('mkdir ' + cd + '/kallisto_out')
+        os.system('mkdir ' + cd + '/kallisto_out')      # makes the kallisto output dir
         num = 1
         for k in pe:  # runs kallisto for each of the paired end read pairs
             kcommand(index, k, num)
@@ -166,7 +183,7 @@ def sleuth_tab():           # produces table for sleuth
     def table(conds_dict, pths):  # makes table of results for sleuth analysis
         o = open('sleuth_table.txt', 'w')
         count = 0
-        for a in conds_dict:
+        for a in conds_dict:        # writes table in the format required for sleuth analysis
             o.write('%s %s %s\n' % (str(a), str(conds_dict[a]), pths[count]))
             count += 1
 
@@ -187,14 +204,14 @@ def sleuth_write():         # writes sleuth output to .log
 
     def sleuth_rite(f):  # writes the results of sleuth stat analysis to .log
         i = open(f, 'r')
-        i_s = i.read().rstrip().split('\n')
+        i_s = i.read().rstrip().split('\n')     # splits sleuth results by line
         i_s_s = []
         for j in i_s:
-            i_s_s.append(j.split(' '))
-        o = open('.log_output/miniProject.log', 'a')
+            i_s_s.append(j.split(' '))          # splits each individual line into a list of items
+        o = open('miniProject.log', 'a')
         o.write('\n\nSLEUTH Outputs:\n')
         for k in i_s_s:
-            for m in range(len(k)):
+            for m in range(len(k)):         # writes the sleuth results into the .log file as a table
                 if m == 0 and k[m] != 'target_id':
                     o.write(str(k[m][4:]) + '\t')
                 elif m == len(k) - 1:
@@ -213,11 +230,11 @@ sleuth_write()
 
 
 def paird_end(inp):
-    pe = []  # groups paired end reads
+    pe = []  # groups paired end reads (makes it easier to call them in the terminal commands)
     for i in inp:
         for j in inp:
             if test_or_full:
-                if i[:15] == j[:15] and i != j and i[-7] != '2':
+                if i[:15] == j[:15] and i != j and i[-7] != '2': # makes sure that it is a [[.1,.2],...] without repeats
                     pe.append([i, j])
             else:
                 if i[:10] == j[:10] and i != j and i[-7] != '2':
@@ -228,6 +245,7 @@ def paird_end(inp):
 def mapped_wf(file_lst):  # selects bowtie mapped files from directory
     wf = file_lst.copy()
     for h in file_lst:
+        # makes sure inputs only includes mapped paired end reads
         if 'mapped' not in h or (test_or_full and 'test_' not in h) or (not test_or_full and 'test_' in h):
             wf.remove(h)
     return wf
@@ -254,7 +272,7 @@ def bowtie():           # runs bowtie seq mapping
                 'nohup bowtie2 -x ' + ind + ' -1 '+cwd+'/transcr_data/' + k[0] + ' -2 '+cwd+'/transcr_data/' +
                 k[1] + ' -S ' + k[0][:-6] + '.sam' + ' --al-conc-gz ' + k[0][:-6] + '_mapped.fq.gz')
 
-    def rewrite(files):
+    def rewrite(files):     # rewrites mapped .gz files so they can be read by spades
         for s in files:
             if s[-17:] == '_1_mapped.fq.2.gz':
                 ns = s.replace('_1_mapped.fq.2.gz', '_2_mapped.fq.gz')
@@ -266,7 +284,7 @@ def bowtie():           # runs bowtie seq mapping
     # Driver
     f = get_fasta(map_accession)  # Pulls fasta seq of accession
     bi = bow_index(f, map_accession)  # creates a bowtie index from fasta file
-    d = wanted_files(cwd)  # only the .fastq files
+    d = wanted_files2(cwd)  # only the .fastq files
     bow(bi, d)  # runs bowtie
     rewrite(mapped_wf(os.listdir(cwd))) # rewites file so that it works with spades
 bowtie()
@@ -274,9 +292,9 @@ bowtie()
 
 def bowtie_charact():           # writes number of reads before and after mapping to .log
     def write(bnumbers, anumbers, samps):  # writes output to .log file
-        o = open('.log_output/miniProject.log', 'a')
+        o = open('miniProject.log', 'a')
         pos = 0
-        o.write('\nBowtie Results:\n')
+        o.write('\nBowtie Results:\n')      # writes how many pairs are present before and after mapping
         for i in samps:
             o.write('%s had %s read pairs before Bowtie2 filtering and %s read pairs after.\n'
                     % (i, bnumbers[pos], anumbers[pos]))
@@ -287,7 +305,7 @@ def bowtie_charact():           # writes number of reads before and after mappin
             if '.gz' in g:
                 os.system('gzip -d %s' % g)
 
-    def include(files):
+    def include():          # for parsing between test and non-test data (as well as .fastq files)
         inc = os.listdir(cwd + '/transcr_data')
         yinc = inc.copy()
         for n in yinc:
@@ -308,27 +326,27 @@ def bowtie_charact():           # writes number of reads before and after mappin
         fanums = []
         cb = 1
         ca = 1
-        for j in sorted(qfiles):
+        for j in sorted(qfiles):        # finds the length of .fastq files before mapping
             binp = open(cwd + '/transcr_data/' + j, 'r')
             binp_s = binp.read().strip().split('\n')
             bnums.append(len(binp_s) / 4)
             if cb % 2 == 0:
-                if bnums[cb-2] == bnums[cb-1]:
+                if bnums[cb-2] == bnums[cb-1]:      # only reads one from each pair
                     fbnums.append(bnums[cb-2])
                 else:
                     fbnums.append(min(bnums[cb-2],bnums[cb-1]))
             cb += 1
-        for k in sorted(mfiles):
+        for k in sorted(mfiles):        # finds the length of fastq files after mepping
             ainp = open(cwd + '/' + k, 'r')
             ainp_s = ainp.read().strip().split('\n')
             anums.append(len(ainp_s) / 4)
             if ca % 2 == 0:
-                fanums.append(anums[ca-2])
+                fanums.append(anums[ca-2])      # only reads one file from each pair (because they are the same length)
             ca += 1
         return fbnums, fanums
 
     # Driver
-    trans = include(cwd)  # transcriptome fastq files (before bowtie)
+    trans = include()  # transcriptome fastq files (before bowtie)
     unzip_files(mapped_wf(os.listdir(cwd)))  # unzip mapped bowtie files
     mapped_f = mapped_wf(os.listdir(cwd))  # CHECK                # unzipped mapped bowtie files
     b, c = calc_nums(trans, mapped_f)  # count number before + after bowtie mapping
@@ -338,7 +356,7 @@ def bowtie_charact():           # writes number of reads before and after mappin
 def spades():           # assemples a de novo genome from the mapped bowtie transcriptome reads
     def run_spades(files):  # runs spades and writes command used to .log
         def write(argas):
-            o = open('.log_output/miniProject.log', 'a')
+            o = open('miniProject.log', 'a')
             o.write('\n\nSPAdes Command:\n' + argas + '\n')
 
         ge = []  # groups paired end reads
@@ -346,18 +364,18 @@ def spades():           # assemples a de novo genome from the mapped bowtie tran
         for i in sorted(files):
             for j in sorted(files):
                 if test_or_full:
-                    if i[:15] == j[:15] and i != j and i[-14] != '2' and count < 3:
-                        ge.append([i, j])
+                    if i[:15] == j[:15] and i != j and i[-14] != '2' and count < 3:     # determines the files to put into spades
+                        ge.append([i, j])                   # only two pairs are used for testing (so it is quicker)
                         count += 1
                 else:
                     if i[:12] == j[:12] and i != j and i[-11] != '2':
                         ge.append([i, j])
-        command_string = 'nohup spades -k 55,127 -t 2 --only-assembler'
+        command_string = 'nohup spades -k 55,127 -t 2 --only-assembler'         # assembles the command for spades
         count = 1
         for i in ge:
             command_string += ' --pe' + str(count) + '-1 ' + cwd + '/' + i[0] + \
                               ' --pe' + str(count) + '-2 ' + cwd + '/' + i[1]
-            count += 1
+            count += 1          # uses --pe#-# so that multiple pairs of PE reads can be used
         command_string += ' -o ' + cwd + '/spades_out'
         write(command_string)
         os.system(command_string)
@@ -372,14 +390,14 @@ bowtie_charact()
 def contig_len():           # determines the number of contigs >1000 bp obtained from spades assembly
     def num_big(file):  # writes number of contigs > 1000 bp to .log
         def write(arges):
-            o = open('.log_output/miniProject.log', 'a')
+            o = open('miniProject.log', 'a')
             o.write('\n\nSPAdes Contigs:\n' +
                     'There are %d contigs > 1000 bp in the assembly.\n' % arges)
         f = open(cwd + '/spades_out/' + file, 'r')
         f_s = f.read().strip().split('\n')
         num = 0
         for i in f_s:
-            if '_length_' in i:
+            if '_length_' in i:     # finds length of contigs via the first line describing each contig
                 r = i.split('_')
                 if int(r[3]) > 1000:
                     num += 1
@@ -393,7 +411,7 @@ contig_len()
 def assembly_len():         # determines the length of assembled genome with >1000 bp scaffolds
     def tot_bp(file):  # prints length of assembly seq of contigs > 1000 bp
         def write(argqs):
-            o = open('.log_output/miniProject.log', 'a')
+            o = open('miniProject.log', 'a')
             o.write('\n\nSPAdes Scaffold Length:\n' +
                     'There are %d bp in the assembly.\n' % argqs)
 
@@ -401,10 +419,10 @@ def assembly_len():         # determines the length of assembled genome with >10
         f_s = f.read().strip().split('\n')
         num = 0
         for i in f_s:
-            if '_length_' in i:
+            if '_length_' in i:         # finds the contigs to include in length calculation via same strategy as contigs
                 r = i.split('_')
                 if int(r[3]) > 1000:
-                    num += int(r[3])
+                    num += int(r[3])        # [3] element in the list split by '_' is the length of the scaffold
         write(num)
 
     # Driver
@@ -428,7 +446,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
         long_pos = 0
         pos = 0
         for i in f_s:
-            if '_length_' in i:
+            if '_length_' in i:     # scans through scaffolds and finds the longest one
                 if pos == 0:
                     r = i.split('_')
                     if int(r[3]) > long:
@@ -445,7 +463,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
             pos += 1
         for j in all_pos:
             if j[0] == long_pos:
-                startp = long_pos
+                startp = long_pos       # records the pos of the longest contig and writes it to a new file
                 endp = j[1]
         write(f_s[startp:endp + 1])
 
@@ -455,7 +473,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
             'blastn -query %s -db %s -out %s.csv -outfmt "10 sseqid pident length qstart qend sstart send bitscore evalue stitle"' % (q, dbf[:17], o))
 
     def write_blast(outfile):  # writes top 10 BLAST hits to .log
-        o = open('.log_output/miniProject.log', 'a')
+        o = open('miniProject.log', 'a')
         c = open(cwd + '/' + outfile)
         c_s = c.read().strip().split('\n')
         header = ['sacc', 'pident', 'length', 'qstart', 'qend', 'sstart', 'send', 'bitscore', 'evalue', 'stitle']
@@ -467,7 +485,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
             else:
                 o.write(i + '\t')
             pos += 1
-        if test_or_full:
+        if test_or_full:        # tells how many blast hits to write to .log
             w = 2
         else:
             w = 10
@@ -475,7 +493,7 @@ def blast():            # runs local BLAST with longest scaffold from assembly, 
             v = c_s[j].split(',')
             pos = 0
             for k in v:
-                if pos == len(v) - 1:
+                if pos == len(v) - 1:       # writes outputs in the format listed above (tab delineated)
                     o.write(k + '\n')
                 else:
                     o.write(k + '\t')
